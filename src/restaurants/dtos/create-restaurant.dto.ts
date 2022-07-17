@@ -1,8 +1,15 @@
-import { ArgsType, Field } from '@nestjs/graphql';
+import { ArgsType, Field, InputType, OmitType } from '@nestjs/graphql';
 import { IsBoolean, IsString, Length } from 'class-validator';
+import { Restaurant } from '../entities/restaurants.entity';
 
-@ArgsType()
-export class CreateRestaurantDto {
+@InputType()
+export class CreateRestaurantDto extends OmitType(
+  Restaurant,
+  ['id'],
+  InputType,
+) {} //부모는 오브젝트타입, 자식은 인풋 타입일때 두번째 argument로 Inputtype을 전달
+
+/*
   @Field((type) => String)
   @IsString()
   @Length(5, 10) //길이 조절
@@ -17,9 +24,8 @@ export class CreateRestaurantDto {
   address: string;
 
   @Field((type) => String)
-  @IsString()
   ownersName: string;
-}
+ */
 //validationpipe로 유효성 검사
 //Main.ts app에서 pipe를 만들어줘야 한다.
 

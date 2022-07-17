@@ -1,10 +1,13 @@
-import { Field, ObjectType } from '@nestjs/graphql';
-import { IsBoolean, IsString, Length } from 'class-validator';
+import { Field, InputType, ObjectType } from '@nestjs/graphql';
+import { IsBoolean, IsOptional, IsString, Length } from 'class-validator';
+import { isAbstractType } from 'graphql';
 import { Column, Entity, PrimaryColumn, PrimaryGeneratedColumn } from 'typeorm';
 
 //DTO는 데이터 엔티티는 구성
 //클래스 하나로 graphql 스키마와 db에 저장되는 실제 데이터의 형식을 데코레이터를 이용해 만들 수 있다.
 //GraphQL을 위한 ObjectType과 TypeOrm을 위한 Entity를 한 번 쓸 수 있다.
+
+@InputType({ isAbstract: true }) //인풋타입이 스키마에 포함되지 않길 원한다, 이걸 어디선가 복사해서 쓴다.
 @ObjectType() //objectType은 자동으로 스키마를 빌드하기 위해 사용하는 GraphQL decorator이다.
 @Entity() //Entity는 TypeORM이 DB에 내용들을 저장 할 수 있게 해준다.
 export class Restaurant {
@@ -14,19 +17,31 @@ export class Restaurant {
 
   @Field((type) => String) //graphql
   @Column() //typeorm
+  @IsString()
+  @Length(5)
   name: string;
 
-  @Field((type) => Boolean)
-  @Column()
+  @Field((type) => Boolean, { nullable: true }) //graphql 스키마에서 이 필드의 defaultValue가 true이다, nullable 도 가능
+  @Column({ default: true }) //데이터베이스를 위한 것
+  @IsOptional() //value가 누락되었는지 확인하고, 없다면 모든 validator를 무시함
+  @IsBoolean()
   isVegan: boolean;
-
-  @Field((type) => String)
+  //graphql, database, validation을 위해 3번씩 테스트 해야한다.
+  //default value와 nullable의 차이 : defaultvalue 값을 추가 해준다.
+  @Field((type) => String, { defaultValue: '강남' })
   @Column()
+  @IsString()
   address: string;
 
-  @Field((type) => String)
-  @Column()
-  ownersName: string;
+  // @Field((type) => String)
+  // @Column()
+  // @IsString()
+  // ownersName: string;
+
+  // @Field((type) => String)
+  // @Column() //null오류로 인해 default 값 x //수정 dist폴더 삭제후 실행 복원하니 수정 됨
+  // @IsString()
+  // categoryName: string;
 }
 //3.0
 //typeorm이 DB에 entity를 넣게 하려면 entity의 위치를 알려주어야 한다.
@@ -65,6 +80,36 @@ NestJS + TypeORM 개발 환경에서 Repository를 사용하는 모듈을 쓸 �
 또한 Repository를 사용하면 어디서든지 접근 가능
 실제 구현 서비스나 테스팅에서 가능
 
-3.2
+3.5
+entity 파일에서 
+데코레이터를 이용해 grphql과 db를 모두 만들어주지만
+dto와 entity가 통합되어 생성되지 않아 일일히 다 바꿔줘야하는 문제가 있다.
+이걸 해결하기 위해 Mapped types를 사용
+
+Mapped types
+이 장은 code first 접근 방식에만 적용됩니다.
+CRUD(Create/Read/Update/Delete)와 같은 기능을 구축할 때 기본 엔터티 유형에 대한 변형을 구성하는 것이 종종 유용합니다. Nest는 이 작업을 보다 편리하게 하기 위해 유형 변환을 수행하는 여러 유틸리티 함수를 제공합니다.
+
+Mapped types들을 사용하기 위해서는 @InputType데코레이터로 선언되야 하고, 따로 지정하지 않으면 부모 클래스와 동일한 데코레이터를 사용한다.
+부모 클래스와 자식 클래스가 다른 경우(예: 부모가 @ObjectType으로 선언된 경우) 두 번째 인수로 InputType을 전달해서 자식 클래스에게 @InputType데코레이터를 사용하도록 한다.
+```
+@InputType()
+export class UpdateUserInput extends PartialType(User, InputType) {}
+```
+https://docs.nestjs.com/graphql/mapped-types
+
+@InputType({ isAbstract: true })을 지정하게 되면 현재 클래스를 GraphQL스키마에 추가하지 않고, 어딘가에 복사해서 쓰는 용도로만 사용하도록 지정한다.
+
+Mapped Types의 종류
+
+PatianalType은 base type, base class를 가져다가 export하고 이 모든 field가
+required가 아닌 class를 만들어준다.
+
+PickType은 input type에서 몇 가지 property를 선택해 새로운 class를 만든다.
+
+OmitType은 base class에서 class를 만드는데 몇몇 field를 제외하고 만든다.
+
+IntersecionType은 두 input을 합쳐주는 역할이다.
+
 
 */
