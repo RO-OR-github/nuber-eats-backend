@@ -7,6 +7,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { RestaurantsModule } from './restaurants/restaurants.module';
 import { Restaurant } from './restaurants/entities/restaurants.entity';
 import { UsersModule } from './users/users.module';
+import { CommonModule } from './common/common.module';
+import { User } from './users/entities/user.entity';
 
 @Module({
   imports: [
@@ -42,12 +44,13 @@ import { UsersModule } from './users/users.module';
       database: process.env.DB_NAME, //ctrl d shift 활용으로 한번에 수정
       synchronize: process.env.NODE_ENV !== 'prod', //기본적으로 env에서 가져오는 변수는 모두 스트링
       logging: process.env.NODE_ENV !== 'prod',
-      entities: [Restaurant], //레스토랑 모듈
+      entities: [User], //User 엔티티 사용 typeorm 모듈에 추가
     }), //TypeOrm 모듈을 NestSJ로 설치후 데이터베이스연결
     //환경변수 파일(.env)을 Node.js에서 이용하는 방법은 dotenv를 이용 하는 거
     //NestJs에서는 config를 활용 이 모듈은 dotnev 최상위에서 실행
     RestaurantsModule,
     UsersModule,
+    CommonModule,
   ],
   controllers: [],
   providers: [],
