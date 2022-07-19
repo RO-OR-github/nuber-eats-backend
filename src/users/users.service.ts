@@ -16,17 +16,20 @@ export class UsersService {
     email,
     password,
     role,
-  }: CreateAccountInput): Promise<string | undefined> {
+  }: CreateAccountInput): Promise<[boolean, string?]> {
+    //오브젝트로도 가능
+    //조금 더 깔끔한 코드
     try {
       const exists = await this.users.findOne({ where: { email } }); //버전이 올라가면서 where를 명시적으로 써주게 바꼈습니다
       if (exists) {
         //make error
-        return 'There is a user with that email already';
+        return [false, 'There is a user with that email already'];
       }
       await this.users.save(this.users.create({ email, password, role }));
+      return [true];
     } catch (e) {
       //make error
-      return "Couldn't create account"; //여기서 그냥 에러를 리턴
+      return [false, "Couldn't create account"]; //여기서 그냥 에러를 리턴
     }
     // check new user
     // create user & hash the password

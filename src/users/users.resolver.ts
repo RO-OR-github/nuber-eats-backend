@@ -20,19 +20,16 @@ export class UsersResolver {
     @Args('input') createAccountInput: CreateAccountInput,
   ): Promise<CreateAccountOutput> {
     try {
-      const error = await this.usersService.createAccount(createAccountInput);
-      if (error) {
-        return {
-          ok: false,
-          error,
-        };
-      }
+      const [ok, error] = await this.usersService.createAccount(
+        createAccountInput,
+      );
       return {
-        ok: true,
-      };
-    } catch (e) {
+        ok, //값에 따라 알아서 변하게 해줄 수 있다.
+        error,
+      }; //변수를 배열로 받아서 깔끔하게 처리 새로운 방식이라 알아두기
+    } catch (error) {
       return {
-        error: e,
+        error,
         ok: false,
       };
     }
