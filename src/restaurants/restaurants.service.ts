@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { create } from 'domain';
 import { Repository } from 'typeorm';
 import { CreateRestaurantDto } from './dtos/create-restaurant.dto';
 import { UpdateRestaurantDto } from './dtos/update-restaurant.dto';
@@ -64,4 +63,15 @@ getAll()은 this.restaurants.find()를 return
 
 4) RestaurantResolver
 : GraphQL Query/Mutation으로 DB에 접근하는 RestaurantService의 메서드들 활용.
+
+4.0
+User Model을 만든다.
+CRUD == account를 만든다. == password를 어떻게 hash하는지 배운다, 
+password를 어떻게 검증하는지 배운다, account와 login을 만들기 때문에, 
+authentiaction(인증), authorization(권한부여)를 배운다.
+그래서 guards같은 middlewares나 metadata를 배운다.
++ decoraater도 배운다, testing도 배움
+
+4.1
+
 */

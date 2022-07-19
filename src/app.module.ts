@@ -48,7 +48,7 @@ import { User } from './users/entities/user.entity';
     }), //TypeOrm 모듈을 NestSJ로 설치후 데이터베이스연결
     //환경변수 파일(.env)을 Node.js에서 이용하는 방법은 dotenv를 이용 하는 거
     //NestJs에서는 config를 활용 이 모듈은 dotnev 최상위에서 실행
-    RestaurantsModule,
+    // RestaurantsModule, => 비활성화
     UsersModule,
     CommonModule,
   ],

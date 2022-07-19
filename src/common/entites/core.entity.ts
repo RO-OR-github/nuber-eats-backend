@@ -1,3 +1,4 @@
+import { Field } from '@nestjs/graphql';
 import {
   CreateDateColumn,
   PrimaryGeneratedColumn,
@@ -5,13 +6,17 @@ import {
 } from 'typeorm';
 
 export class CoreEntity {
+  //엔티티를 만들고 graphQL type들도 넣어줌
   @PrimaryGeneratedColumn()
+  @Field((type) => Number)
   id: number;
 
   @CreateDateColumn()
+  @Field((type) => Date)
   createdAt: Date;
 
   @UpdateDateColumn()
+  @Field((type) => Date)
   updatedAt: Date;
 }
 /*
