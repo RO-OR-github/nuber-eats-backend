@@ -24,7 +24,7 @@ export class UsersResolver {
         createAccountInput,
       );
       return {
-        ok, //값에 따라 알아서 변하게 해줄 수 있다.
+        ok, //값에 따라 알아서 변하게 해줄 수 있다. if else 필요 x
         error,
       }; //변수를 배열로 받아서 깔끔하게 처리 새로운 방식이라 알아두기
     } catch (error) {
@@ -36,3 +36,4 @@ export class UsersResolver {
   }
 }
 //에러처리 방법을 throw가아닌 직접 리턴을 사용하여 에러를 관리해준다.
+//이 resolver가 하는 일은 오직 input 가지고 output을 보내는거 뿐이다.

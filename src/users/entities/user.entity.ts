@@ -5,7 +5,9 @@ import {
   registerEnumType,
 } from '@nestjs/graphql';
 import { CoreEntity } from 'src/common/entites/core.entity';
-import { Column, Entity } from 'typeorm';
+import { BeforeInsert, Column, Entity } from 'typeorm';
+import * as bcrypt from 'bcrypt';
+import { InternalServerErrorException } from '@nestjs/common';
 
 enum UserRole { //enum 타입 이름있는 숫자를 갖는 객체 정도
   Owner, //데이터 베이스에서 0
@@ -31,6 +33,17 @@ export class User extends CoreEntity {
   @Column({ type: 'enum', enum: UserRole })
   @Field((type) => UserRole) //추가해줬기 때문에 가능
   role: UserRole; //client, owner, delivery중 하나
+
+  //DB에 저장하기 전에 instance의 password를 받아서(서비스를 보면 저장하기 전에 instance를 생성한다.) hash한다.
+  @BeforeInsert()
+  async hashPassword(): Promise<void> {
+    try {
+      this.password = await bcrypt.hash(this.password, 10); //10번.
+    } catch (e) {
+      console.log(e);
+      throw new InternalServerErrorException(); //(서비스 파일 내부에서 캐치)
+    }
+  } // => 비동기 function
 }
 /*
 4.1
@@ -55,4 +68,7 @@ registerEnumType(AllowedColor, { name: 'AllowedColor' });
 ```
 https://docs.nestjs.com/graphql/unions-and-enums#code-first-1
 https://www.typescriptlang.org/ko/docs/handbook/enums.html
+
+4.7
+password를 hash 하기 위해 bcrypt 사용(hash 하고 hash 확인 할 때 사용)
 */
