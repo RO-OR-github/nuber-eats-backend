@@ -132,4 +132,7 @@ Relation options
 onDelete: "RESTRICT"|"CASCADE"|"SET NULL"
 참조된 객체가 삭제될 때, 외래 키(foreign key)가 어떻게 작동해야 하는지 지정한다.
 https://orkhan.gitbook.io/typeorm/docs/relations#relation-options
+
+10.1
+타입이 너무 많아 어느 타입인지 모르므로 이름을 다르게 만들어준다.
 */

@@ -1,8 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { User } from 'src/users/entities/user.entity';
 import { Repository } from 'typeorm';
-import { CreateRestaurantDto } from './dtos/create-restaurant.dto';
-import { UpdateRestaurantDto } from './dtos/update-restaurant.dto';
+import {
+  CreateRestaurantInput,
+  CreateRestaurantOutput,
+} from './dtos/create-restaurant.dto';
 import { Restaurant } from './entities/restaurants.entity';
 
 //DB를 접근 가능
@@ -12,26 +15,46 @@ export class RestaurantService {
     @InjectRepository(Restaurant) //Restaurant entity의 repository를 inject
     private readonly restaurants: Repository<Restaurant>, //이름은 restaurants이고 Restaurant를 가지고 있는 Repository이다.
   ) {}
-  getAll(): Promise<Restaurant[]> {
-    return this.restaurants.find(); //this.restaurants.를 했을 때 Repository에 접근해 모든걸 할 수 있다.
-  } //find()는 async method여서 Promise를 써줘야한다.2
-  createRestaurant(
-    createRestaurantDto: CreateRestaurantDto,
-  ): Promise<Restaurant> {
-    const newRsetaurant = this.restaurants.create(createRestaurantDto); //Dto가있을 때 방법
-    // 만들어둔 dto 가 없을 때 방법name: createRestaurantDto.name
-    //new Restaurant(); 타입스크립트, 자바스크립트의 방법
-    //이것을 사용하면 매번 만들어줘야 하므로 typeorm의 기능을 사용
-    //newRsetaurant.name = createRestaurantDto.name;
-    //위에 const newRsetaurant 자바스크립트에만 저장되어있으므로 마치 클래스
-    //저장 하기 위해서 save method를 사용해야 한다.
-    return this.restaurants.save(newRsetaurant); //newRestaurant를 save 한다.
-    //return 타입을 보면 create은 Restaurant을 리턴하고 save는 promise를 리턴한다.
+
+  async createRestaurant(
+    owner: User,
+    createRestaurantInput: CreateRestaurantInput,
+  ): Promise<CreateRestaurantOutput> {
+    try {
+      const newRestaurant = this.restaurants.create(createRestaurantInput);
+      await this.restaurants.save(newRestaurant);
+      return {
+        ok: true,
+      };
+    } catch {
+      return {
+        ok: false,
+        error: 'Could not create restaurant',
+      };
+    }
   }
-  updateRestaurant({ id, data }: UpdateRestaurantDto) {
-    this.restaurants.update(id, { ...data }); //...data는 data의 내용
-  } //update는 db에 해당 entity가 있는지 확인 x, 프로미스를 반환
 }
+// getAll(): Promise<Restaurant[]> {
+//   return this.restaurants.find(); //this.restaurants.를 했을 때 Repository에 접근해 모든걸 할 수 있다.
+// } //find()는 async method여서 Promise를 써줘야한다.2
+// createRestaurant(
+//   createRestaurantDto: CreateRestaurantDto,
+// ): Promise<Restaurant> {
+//   const newRsetaurant = this.restaurants.create(createRestaurantDto); //Dto가있을 때 방법
+//   // 만들어둔 dto 가 없을 때 방법name: createRestaurantDto.name
+//   //new Restaurant(); 타입스크립트, 자바스크립트의 방법
+//   //이것을 사용하면 매번 만들어줘야 하므로 typeorm의 기능을 사용
+//   //newRsetaurant.name = createRestaurantDto.name;
+//   //위에 const newRsetaurant 자바스크립트에만 저장되어있으므로 마치 클래스
+//   //저장 하기 위해서 save method를 사용해야 한다.
+//   return this.restaurants.save(newRsetaurant); //newRestaurant를 save 한다.
+//   //return 타입을 보면 create은 Restaurant을 리턴하고 save는 promise를 리턴한다.
+
+//   }
+//   updateRestaurant({ id, data }: UpdateRestaurantDto) {
+//     this.restaurants.update(id, { ...data }); //...data는 data의 내용
+//   } //update는 db에 해당 entity가 있는지 확인 x, 프로미스를 반환
+// }
 
 //getAll()을 작성해서 모든 restaurant을 가져오는 service 만들기
 //실제로 DB에 접근하는 방식을 작성

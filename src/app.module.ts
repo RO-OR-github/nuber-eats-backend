@@ -51,7 +51,7 @@ import { Category } from './restaurants/entities/category.entity';
     //NestJs에서는 config를 활용 이 모듈은 dotnev 최상위에서 실행
     // RestaurantsModule, => 비활성화
     UsersModule,
-    CommonModule,
+    RestaurantsModule,
   ],
   controllers: [],
   providers: [],
