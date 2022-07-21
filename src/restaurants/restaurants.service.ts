@@ -6,6 +6,7 @@ import {
   CreateRestaurantInput,
   CreateRestaurantOutput,
 } from './dtos/create-restaurant.dto';
+import { Category } from './entities/category.entity';
 import { Restaurant } from './entities/restaurants.entity';
 
 //DB를 접근 가능
@@ -14,6 +15,8 @@ export class RestaurantService {
   constructor(
     @InjectRepository(Restaurant) //Restaurant entity의 repository를 inject
     private readonly restaurants: Repository<Restaurant>, //이름은 restaurants이고 Restaurant를 가지고 있는 Repository이다.
+    @InjectRepository(Category)
+    private readonly categories: Repository<Category>,
   ) {}
 
   async createRestaurant(
@@ -22,6 +25,20 @@ export class RestaurantService {
   ): Promise<CreateRestaurantOutput> {
     try {
       const newRestaurant = this.restaurants.create(createRestaurantInput);
+      newRestaurant.owner = owner;
+      const categoryName = createRestaurantInput.categoryName
+        .trim()
+        .toLowerCase();
+      const categorySlug = categoryName.replace(/ /g, '-');
+      let category = await this.categories.findOne({
+        where: { slug: categorySlug }, //where 필수
+      });
+      if (!category) {
+        category = await this.categories.save(
+          this.categories.create({ slug: categorySlug, name: categoryName }),
+        );
+      }
+      newRestaurant.category = category;
       await this.restaurants.save(newRestaurant);
       return {
         ok: true,
@@ -95,6 +112,14 @@ authentiaction(인증), authorization(권한부여)를 배운다.
 그래서 guards같은 middlewares나 metadata를 배운다.
 + decoraater도 배운다, testing도 배움
 
-4.1
+10.3
+정규표현식 테스트
+/ /g: 모든 스페이스 제거
+https://www.regexpal.com/
+
+String.prototype.replaceAll()
+정규표현식을 사용해도 되고 replaceAll()을 사용해도 됩니다.
+"hi how are you".replaceAll(" ","-") // 'hi-how-are-you'
+https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/replaceAll
 
 */

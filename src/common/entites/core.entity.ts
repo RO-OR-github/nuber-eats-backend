@@ -1,10 +1,11 @@
-import { Field } from '@nestjs/graphql';
+import { Field, ObjectType } from '@nestjs/graphql';
 import {
   CreateDateColumn,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 
+@ObjectType()
 export class CoreEntity {
   //엔티티를 만들고 graphQL type들도 넣어줌
   @PrimaryGeneratedColumn()

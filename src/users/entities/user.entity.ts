@@ -11,11 +11,17 @@ import { InternalServerErrorException } from '@nestjs/common';
 import { IsBoolean, IsEmail, IsEnum, IsString } from 'class-validator';
 import { Restaurant } from 'src/restaurants/entities/restaurants.entity';
 
-enum UserRole { //enum 타입 이름있는 숫자를 갖는 객체 정도
-  Owner, //데이터 베이스에서 0
-  Client, //1
-  Delivery, //2
+// enum UserRole { //enum 타입 이름있는 숫자를 갖는 객체 정도
+//   Owner, //데이터 베이스에서 0
+//   Client, //1
+//   Delivery, //2
+// }
+export enum UserRole {
+  Client = 'Client',
+  Owner = 'O Owner',
+  Delivery = 'Delivery',
 }
+
 registerEnumType(UserRole, { name: 'UserRole' }); //graphql에 enum 추가
 //type UserRole = 'client' | 'owner' | 'delivery'; //타입
 

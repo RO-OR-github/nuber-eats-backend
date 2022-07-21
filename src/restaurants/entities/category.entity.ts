@@ -9,17 +9,22 @@ import { Restaurant } from './restaurants.entity';
 @Entity()
 export class Category extends CoreEntity {
   @Field((type) => String)
-  @Column()
+  @Column({ unique: true })
   @IsString()
   @Length(5)
   name: string;
 
-  @Field((type) => String)
-  @Column()
+  @Field((type) => String, { nullable: true })
+  @Column({ nullable: true })
   @IsString()
   coverImg: string; //null 값 오류 이유 => 데이터베이스 이전 데이터로 인해 삭제후 재실행
 
-  @Field((type) => [Restaurant], { nullable: true }) //식당이 없을 수 도 있기 때문에(카테고리)
+  @Field((type) => String)
+  @Column({ unique: true })
+  @IsString()
+  slug: string;
+
+  @Field((type) => [Restaurant], { nullable: true })
   @OneToMany((type) => Restaurant, (restaurant) => restaurant.category)
   restaurants: Restaurant[];
 }
