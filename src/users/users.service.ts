@@ -4,6 +4,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateAccountInput } from './dtos/create-account.dto';
+import { LoginInput } from './dtos/login.dto';
 import { User } from './entities/user.entity';
 
 @Injectable()
@@ -16,23 +17,55 @@ export class UsersService {
     email,
     password,
     role,
-  }: CreateAccountInput): Promise<[boolean, string?]> {
+  }: CreateAccountInput): Promise<{ ok: boolean; error?: string }> {
     //오브젝트로도 가능
     //조금 더 깔끔한 코드
     try {
       const exists = await this.users.findOne({ where: { email } }); //버전이 올라가면서 where를 명시적으로 써주게 바꼈습니다
       if (exists) {
         //make error
-        return [false, 'There is a user with that email already'];
+        return { ok: false, error: 'There is a user with that email already' };
       }
       await this.users.save(this.users.create({ email, password, role })); //create은 생성만 DB에 저장은 안함
-      return [true];
+      return { ok: true };
     } catch (e) {
       //make error
-      return [false, "Couldn't create account"]; //여기서 그냥 에러를 리턴
+      return { ok: false, error: "Couldn't create account" }; //여기서 그냥 에러를 리턴
     }
     // check new user
     // create user & hash the password
+  }
+
+  async login({
+    email,
+    password,
+  }: LoginInput): Promise<{ ok: boolean; error?: string; token?: string }> {
+    // make a JWT and give it to the user
+    try {
+      const user = await this.users.findOne({ where: { email } });
+      if (!user) {
+        return {
+          ok: false,
+          error: 'User not found',
+        };
+      }
+      const passwordCorrect = await user.checkPassword(password);
+      if (!passwordCorrect) {
+        return {
+          ok: false,
+          error: 'Wrong password',
+        };
+      }
+      return {
+        ok: true,
+        token: 'lalalalaalala',
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        error,
+      };
+    }
   }
 }
 /*

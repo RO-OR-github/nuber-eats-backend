@@ -3,6 +3,7 @@ import {
   CreateAccountInput,
   CreateAccountOutput,
 } from './dtos/create-account.dto';
+import { LoginInput, LoginOutput } from './dtos/login.dto';
 import { User } from './entities/user.entity';
 import { UsersService } from './users.service';
 
@@ -20,17 +21,25 @@ export class UsersResolver {
     @Args('input') createAccountInput: CreateAccountInput,
   ): Promise<CreateAccountOutput> {
     try {
-      const [ok, error] = await this.usersService.createAccount(
-        createAccountInput,
-      );
-      return {
-        ok, //값에 따라 알아서 변하게 해줄 수 있다. if else 필요 x
-        error,
-      }; //변수를 배열로 받아서 깔끔하게 처리 새로운 방식이라 알아두기
+      return this.usersService.createAccount(createAccountInput);
+      //값에 따라 알아서 변하게 해줄 수 있다. if else 필요 x
+      //변수를 배열로 받아서 깔끔하게 처리 새로운 방식이라 알아두기
     } catch (error) {
       return {
         error,
         ok: false,
+      };
+    }
+  }
+
+  @Mutation((returns) => LoginOutput)
+  async login(@Args('input') loginInput: LoginInput): Promise<LoginOutput> {
+    try {
+      return this.usersService.login(loginInput);
+    } catch (error) {
+      return {
+        ok: false,
+        error,
       };
     }
   }

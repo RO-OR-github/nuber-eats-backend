@@ -1,31 +1,35 @@
 import { Field, InputType, ObjectType } from '@nestjs/graphql';
 import { IsBoolean, IsOptional, IsString, Length } from 'class-validator';
 import { isAbstractType } from 'graphql';
-import { Column, Entity, PrimaryColumn, PrimaryGeneratedColumn } from 'typeorm';
+import { CoreEntity } from 'src/common/entites/core.entity';
+import { User } from 'src/users/entities/user.entity';
+import {
+  Column,
+  Entity,
+  ManyToOne,
+  PrimaryColumn,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
+import { Category } from './category.entity';
 
 //DTO는 데이터 엔티티는 구성
 //클래스 하나로 graphql 스키마와 db에 저장되는 실제 데이터의 형식을 데코레이터를 이용해 만들 수 있다.
 //GraphQL을 위한 ObjectType과 TypeOrm을 위한 Entity를 한 번 쓸 수 있다.
 
-@InputType({ isAbstract: true }) //인풋타입이 스키마에 포함되지 않길 원한다, 이걸 어디선가 복사해서 쓴다.
+@InputType('RestaurantInputType', { isAbstract: true }) //인풋타입이 스키마에 포함되지 않길 원한다, 이걸 어디선가 복사해서 쓴다.
 @ObjectType() //objectType은 자동으로 스키마를 빌드하기 위해 사용하는 GraphQL decorator이다.
 @Entity() //Entity는 TypeORM이 DB에 내용들을 저장 할 수 있게 해준다.
-export class Restaurant {
-  @PrimaryGeneratedColumn() //primary컬럼 만들어주기
-  @Field((type) => Number)
-  id: number;
-
+export class Restaurant extends CoreEntity {
   @Field((type) => String) //graphql
   @Column() //typeorm
   @IsString()
   @Length(5)
   name: string;
 
-  @Field((type) => Boolean, { nullable: true }) //graphql 스키마에서 이 필드의 defaultValue가 true이다, nullable 도 가능
-  @Column({ default: true }) //데이터베이스를 위한 것
-  @IsOptional() //value가 누락되었는지 확인하고, 없다면 모든 validator를 무시함
-  @IsBoolean()
-  isVegan: boolean;
+  @Field((type) => String)
+  @Column()
+  @IsString()
+  coverImg: string;
   //graphql, database, validation을 위해 3번씩 테스트 해야한다.
   //default value와 nullable의 차이 : defaultvalue 값을 추가 해준다.
   @Field((type) => String, { defaultValue: '강남' })
@@ -33,6 +37,16 @@ export class Restaurant {
   @IsString()
   address: string;
 
+  @Field((type) => Category, { nullable: true })
+  @ManyToOne((type) => Category, (category) => category.restaurants, {
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
+  category: Category;
+
+  @Field((type) => User)
+  @ManyToOne((type) => User, (user) => user.restaurants)
+  owner: User;
   // @Field((type) => String)
   // @Column()
   // @IsString()
@@ -111,5 +125,11 @@ OmitType은 base class에서 class를 만드는데 몇몇 field를 제외하고 
 
 IntersecionType은 두 input을 합쳐주는 역할이다.
 
+nullable?: boolean;
+relation column 값이 null을 허용할 수 있는지 여부를 나타냅니다.
 
+Relation options
+onDelete: "RESTRICT"|"CASCADE"|"SET NULL"
+참조된 객체가 삭제될 때, 외래 키(foreign key)가 어떻게 작동해야 하는지 지정한다.
+https://orkhan.gitbook.io/typeorm/docs/relations#relation-options
 */

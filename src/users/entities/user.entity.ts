@@ -5,9 +5,11 @@ import {
   registerEnumType,
 } from '@nestjs/graphql';
 import { CoreEntity } from 'src/common/entites/core.entity';
-import { BeforeInsert, Column, Entity } from 'typeorm';
+import { BeforeInsert, Column, Entity, OneToMany } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { InternalServerErrorException } from '@nestjs/common';
+import { IsBoolean, IsEmail, IsEnum, IsString } from 'class-validator';
+import { Restaurant } from 'src/restaurants/entities/restaurants.entity';
 
 enum UserRole { //enum 타입 이름있는 숫자를 갖는 객체 정도
   Owner, //데이터 베이스에서 0
@@ -17,22 +19,34 @@ enum UserRole { //enum 타입 이름있는 숫자를 갖는 객체 정도
 registerEnumType(UserRole, { name: 'UserRole' }); //graphql에 enum 추가
 //type UserRole = 'client' | 'owner' | 'delivery'; //타입
 
-@InputType({ isAbstract: true }) //인풋타입이 스키마에 포함되지 않길 원한다, 이걸 어디선가 복사해서 쓴다.
+@InputType('UserInputType', { isAbstract: true }) //인풋타입이 스키마에 포함되지 않길 원한다, 이걸 어디선가 복사해서 쓴다.
 @ObjectType()
 @Entity()
 export class User extends CoreEntity {
   //기본적인 부분은 반복하기 싫으므로 확장을 하여 사용
   @Column()
   @Field((type) => String)
+  @IsEmail()
   email: string;
 
   @Column()
   @Field((type) => String)
+  @IsString()
   password: string;
 
   @Column({ type: 'enum', enum: UserRole })
   @Field((type) => UserRole) //추가해줬기 때문에 가능
+  @IsEnum(UserRole)
   role: UserRole; //client, owner, delivery중 하나
+
+  @Column({ default: false })
+  @Field((type) => Boolean)
+  @IsBoolean()
+  verified: boolean;
+
+  @Field((type) => [Restaurant])
+  @OneToMany((type) => Restaurant, (restaurant) => restaurant.owner)
+  restaurants: Restaurant[];
 
   //DB에 저장하기 전에 instance의 password를 받아서(서비스를 보면 저장하기 전에 instance를 생성한다.) hash한다.
   @BeforeInsert()
@@ -44,6 +58,16 @@ export class User extends CoreEntity {
       throw new InternalServerErrorException(); //(서비스 파일 내부에서 캐치)
     }
   } // => 비동기 function
+
+  async checkPassword(aPassword: string): Promise<boolean> {
+    try {
+      const ok = await bcrypt.compare(aPassword, this.password);
+      return ok;
+    } catch (e) {
+      console.log(e);
+      throw new InternalServerErrorException();
+    }
+  }
 }
 /*
 4.1
