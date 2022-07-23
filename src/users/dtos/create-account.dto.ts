@@ -8,7 +8,6 @@ export class CreateAccountInput extends PickType(User, [
   'password',
   'role',
 ]) {}
-//create Account DTO
 
 @ObjectType()
 export class CreateAccountOutput extends CoreOutput {}

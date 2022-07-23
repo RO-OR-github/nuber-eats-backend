@@ -1,57 +1,102 @@
-import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { Module } from '@nestjs/common';
-import * as Joi from 'joi'; //ts가아닌 js로 만들어졌기 때문에 이런식으로 import해준다.
+import * as Joi from 'joi';
 import { ConfigModule } from '@nestjs/config';
 import { GraphQLModule } from '@nestjs/graphql';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { RestaurantsModule } from './restaurants/restaurants.module';
-import { Restaurant } from './restaurants/entities/restaurants.entity';
 import { UsersModule } from './users/users.module';
-import { CommonModule } from './common/common.module';
 import { User } from './users/entities/user.entity';
-import { Category } from './restaurants/entities/category.entity';
+import { JwtModule } from './jwt/jwt.module';
+import { AuthModule } from './auth/auth.module';
+import { Verification } from './users/entities/verification.entity';
+import { MailModule } from './mail/mail.module';
+import { Restaurant } from './restaurants/entities/restaurant.entity';
+import { Category } from './restaurants/entities/cetegory.entity';
+import { RestaurantsModule } from './restaurants/restaurants.module';
+import { Dish } from './restaurants/entities/dish.entity';
+import { OrdersModule } from './orders/orders.module';
+import { Order } from './orders/entities/order.entity';
+import { OrderItem } from './orders/entities/order-item.entity';
+import { CommonModule } from './common/common.module';
+import { PaymentsModule } from './payments/payments.module';
+import { Payment } from './payments/entities/payment.entity';
+import { ScheduleModule } from '@nestjs/schedule';
+import { UploadsModule } from './uploads/uploads.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
-      isGlobal: true, //어플리케이션 어디서나 config 모듈에 접근 가능
-      envFilePath: process.env.NODE_ENV == 'dev' ? '.env.dev' : '.env.test', //이부분을 틀리면 안된다.
-      ignoreEnvFile: process.env.NODE_ENV === 'prod', // prod일때는 환경변수파일 무시
+      isGlobal: true,
+      envFilePath: process.env.NODE_ENV === 'dev' ? '.env.dev' : '.env.test',
+      ignoreEnvFile: process.env.NODE_ENV === 'production',
       validationSchema: Joi.object({
-        NODE_ENV: Joi.string().valid('dev', 'prod').required(), //npm run start:dev 다시 실행
-        DB_HOST: Joi.string().required(), //env파일 모듀 유효성 검사
-        DB_PORT: Joi.string().required(),
-        DB_USERNAME: Joi.string().required(),
-        DB_PASSWORD: Joi.string().required(),
-        DB_NAME: Joi.string().required(),
-        // process.env.NODE_ENV가 가상변수 dev이면 .dev.en 아니면 .test.env
-        //test, development, production 환경을 각각 쓰기 위해 //각각의 환경을 위한 파일 만듬
-        //커멘드에 따라 환경변수 만들기
-        //cross-env 로 가상변수 설정
-        //env를 .gitignore 에 추가 깃허브에 올릴 필요가 없는 부분이므로
-      }), //Joi를 이용해서 유효성 검사 하는법, NestJS공식 문서에 나와있다
+        NODE_ENV: Joi.string()
+          .valid('dev', 'production', 'test')
+          .required(),
+        DB_HOST: Joi.string(),
+        DB_PORT: Joi.string(),
+        DB_USERNAME: Joi.string(),
+        DB_PASSWORD: Joi.string(),
+        DB_NAME: Joi.string(),
+        // PRIVATE_KEY: Joi.string().required(),
+        // MAILGUN_API_KEY: Joi.string().required(),
+        // MAILGUN_DOMAIN_NAME: Joi.string().required(),
+        // MAILGUN_FROM_EMAIL: Joi.string().required(),
+        // AWS_KEY: Joi.string().required(),
+        // AWS_SECRET: Joi.string().required(),
+      }),
     }),
-    GraphQLModule.forRoot<ApolloDriverConfig>({
-      driver: ApolloDriver,
-      autoSchemaFile: true,
-    }),
-
     TypeOrmModule.forRoot({
       type: 'postgres',
-      host: process.env.DB_HOST, //alt shift 복붙 아래로,ctrl alt 화살표 로 창옮길수도 있음
-      port: +process.env.DB_PORT, //string앞에 +를 붙이면 nuber로 바꿔줌 (숫자형식일때)
-      username: process.env.DB_USERNAME,
-      password: process.env.DB_PASSWORD, //localhost로연결 하면 물어보지않음
-      database: process.env.DB_NAME, //ctrl d shift 활용으로 한번에 수정
-      synchronize: process.env.NODE_ENV !== 'prod', //기본적으로 env에서 가져오는 변수는 모두 스트링
-      logging: process.env.NODE_ENV !== 'prod',
-      entities: [User, Restaurant, Category], //User 엔티티 사용 typeorm 모듈에 추가
-    }), //TypeOrm 모듈을 NestSJ로 설치후 데이터베이스연결
-    //환경변수 파일(.env)을 Node.js에서 이용하는 방법은 dotenv를 이용 하는 거
-    //NestJs에서는 config를 활용 이 모듈은 dotnev 최상위에서 실행
-    // RestaurantsModule, => 비활성화
+      ...(process.env.DATABASE_URL
+        ? { url: process.env.DATABASE_URL }
+        : {
+            host: process.env.DB_HOST,
+            port: +process.env.DB_PORT,
+            username: process.env.DB_USERNAME,
+            password: process.env.DB_PASSWORD,
+            database: process.env.DB_NAME,
+          }),
+      synchronize: process.env.NODE_ENV !== 'prod',
+      logging:
+        process.env.NODE_ENV !== 'prod' && process.env.NODE_ENV !== 'test',
+      entities: [
+        User,
+        Verification,
+        Restaurant,
+        Category,
+        Dish,
+        Order,
+        OrderItem,
+        Payment,
+      ],
+    }),
+    GraphQLModule.forRoot({
+      playground: process.env.NODE_ENV !== 'production',
+      installSubscriptionHandlers: true,
+      autoSchemaFile: true,
+      context: ({ req, connection }) => {
+        const TOKEN_KEY = 'x-jwt';
+        return {
+          token: req ? req.headers[TOKEN_KEY] : connection.context[TOKEN_KEY],
+        };
+      },
+    }),
+    ScheduleModule.forRoot(),
+    JwtModule.forRoot({
+      privateKey: process.env.PRIVATE_KEY,
+    }),
+    MailModule.forRoot({
+      apiKey: process.env.MAILGUN_API_KEY,
+      domain: process.env.MAILGUN_DOMAIN_NAME,
+      fromEmail: process.env.MAILGUN_FROM_EMAIL,
+    }),
+    AuthModule,
     UsersModule,
     RestaurantsModule,
+    OrdersModule,
+    CommonModule,
+    PaymentsModule,
+    UploadsModule,
   ],
   controllers: [],
   providers: [],

@@ -1,22 +1,45 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from 'src/users/entities/user.entity';
-import { Repository } from 'typeorm';
+import { Like, Raw, Repository } from 'typeorm';
+import { AllCategoriesOutput } from './dtos/all-categories.dto';
+import { CategoryInput, CategoryOutput } from './dtos/category.dto';
+import { CreateDishInput, CreateDishOutput } from './dtos/create-dish.dto';
 import {
   CreateRestaurantInput,
   CreateRestaurantOutput,
 } from './dtos/create-restaurant.dto';
-import { Category } from './entities/category.entity';
-import { Restaurant } from './entities/restaurants.entity';
+import { DeleteDishInput, DeleteDishOutput } from './dtos/delete-dish.dto';
+import {
+  DeleteRestaurantInput,
+  DeleteRestaurantOutput,
+} from './dtos/delete-restaurant.dto';
+import { EditDishInput, EditDishOutput } from './dtos/edit-dish.dto';
+import {
+  EditRestaurantInput,
+  EditRestaurantOutput,
+} from './dtos/edit-restaurant.dto';
+import { MyRestaurantInput, MyRestaurantOutput } from './dtos/my-restaurant';
+import { MyRestaurantsOutput } from './dtos/my-restaurants.dto';
+import { RestaurantInput, RestaurantOutput } from './dtos/restaurant.dto';
+import { RestaurantsInput, RestaurantsOutput } from './dtos/restaurants.dto';
+import {
+  SearchRestaurantInput,
+  SearchRestaurantOutput,
+} from './dtos/search-restaurant.dto';
+import { Category } from './entities/cetegory.entity';
+import { Dish } from './entities/dish.entity';
+import { Restaurant } from './entities/restaurant.entity';
+import { CategoryRepository } from './repositories/category.repository';
 
-//DB를 접근 가능
 @Injectable()
 export class RestaurantService {
   constructor(
-    @InjectRepository(Restaurant) //Restaurant entity의 repository를 inject
-    private readonly restaurants: Repository<Restaurant>, //이름은 restaurants이고 Restaurant를 가지고 있는 Repository이다.
-    @InjectRepository(Category)
-    private readonly categories: Repository<Category>,
+    @InjectRepository(Restaurant)
+    private readonly restaurants: Repository<Restaurant>,
+    @InjectRepository(Dish)
+    private readonly dishes: Repository<Dish>,
+    private readonly categories: CategoryRepository,
   ) {}
 
   async createRestaurant(
@@ -26,22 +49,14 @@ export class RestaurantService {
     try {
       const newRestaurant = this.restaurants.create(createRestaurantInput);
       newRestaurant.owner = owner;
-      const categoryName = createRestaurantInput.categoryName
-        .trim()
-        .toLowerCase();
-      const categorySlug = categoryName.replace(/ /g, '-');
-      let category = await this.categories.findOne({
-        where: { slug: categorySlug }, //where 필수
-      });
-      if (!category) {
-        category = await this.categories.save(
-          this.categories.create({ slug: categorySlug, name: categoryName }),
-        );
-      }
+      const category = await this.categories.getOrCreate(
+        createRestaurantInput.categoryName,
+      );
       newRestaurant.category = category;
       await this.restaurants.save(newRestaurant);
       return {
         ok: true,
+        restaurantId: newRestaurant.id,
       };
     } catch {
       return {
@@ -50,76 +65,344 @@ export class RestaurantService {
       };
     }
   }
+
+  async editRestaurant(
+    owner: User,
+    editRestaurantInput: EditRestaurantInput,
+  ): Promise<EditRestaurantOutput> {
+    try {
+      const restaurant = await this.restaurants.findOne(
+        editRestaurantInput.restaurantId,
+      );
+      if (!restaurant) {
+        return {
+          ok: false,
+          error: 'Restaurant not found',
+        };
+      }
+      if (owner.id !== restaurant.ownerId) {
+        return {
+          ok: false,
+          error: "You can't edit a restaurant that you don't own",
+        };
+      }
+      let category: Category = null;
+      if (editRestaurantInput.categoryName) {
+        category = await this.categories.getOrCreate(
+          editRestaurantInput.categoryName,
+        );
+      }
+      await this.restaurants.save([
+        {
+          id: editRestaurantInput.restaurantId,
+          ...editRestaurantInput,
+          ...(category && { category }),
+        },
+      ]);
+      return {
+        ok: true,
+      };
+    } catch {
+      return {
+        ok: false,
+        error: 'Could not edit Restaurant',
+      };
+    }
+  }
+
+  async deleteRestaurant(
+    owner: User,
+    { restaurantId }: DeleteRestaurantInput,
+  ): Promise<DeleteRestaurantOutput> {
+    try {
+      const restaurant = await this.restaurants.findOne(restaurantId);
+      if (!restaurant) {
+        return {
+          ok: false,
+          error: 'Restaurant not found',
+        };
+      }
+      if (owner.id !== restaurant.ownerId) {
+        return {
+          ok: false,
+          error: "You can't delete a restaurant that you don't own",
+        };
+      }
+      await this.restaurants.delete(restaurantId);
+      return {
+        ok: true,
+      };
+    } catch {
+      return {
+        ok: false,
+        error: 'Could not delete restaurant.',
+      };
+    }
+  }
+
+  async allCategories(): Promise<AllCategoriesOutput> {
+    try {
+      const categories = await this.categories.find();
+      return {
+        ok: true,
+        categories,
+      };
+    } catch {
+      return {
+        ok: false,
+        error: 'Could not load categories',
+      };
+    }
+  }
+  countRestaurants(category: Category) {
+    return this.restaurants.count({ category });
+  }
+  async findCategoryBySlug({
+    slug,
+    page,
+  }: CategoryInput): Promise<CategoryOutput> {
+    try {
+      const category = await this.categories.findOne({ slug });
+      if (!category) {
+        return {
+          ok: false,
+          error: 'Category not found',
+        };
+      }
+      const restaurants = await this.restaurants.find({
+        where: {
+          category,
+        },
+        order: {
+          isPromoted: 'DESC',
+        },
+        take: 25,
+        skip: (page - 1) * 25,
+      });
+      const totalResults = await this.countRestaurants(category);
+      return {
+        ok: true,
+        restaurants,
+        category,
+        totalPages: Math.ceil(totalResults / 25),
+      };
+    } catch {
+      return {
+        ok: false,
+        error: 'Could not load category',
+      };
+    }
+  }
+
+  async allRestaurants({ page }: RestaurantsInput): Promise<RestaurantsOutput> {
+    try {
+      const [restaurants, totalResults] = await this.restaurants.findAndCount({
+        skip: (page - 1) * 3,
+        take: 3,
+        order: {
+          isPromoted: 'DESC',
+        },
+      });
+      return {
+        ok: true,
+        results: restaurants,
+        totalPages: Math.ceil(totalResults / 3),
+        totalResults,
+      };
+    } catch {
+      return {
+        ok: false,
+        error: 'Could not load restaurants',
+      };
+    }
+  }
+
+  async findRestaurantById({
+    restaurantId,
+  }: RestaurantInput): Promise<RestaurantOutput> {
+    try {
+      const restaurant = await this.restaurants.findOne(restaurantId, {
+        relations: ['menu'],
+      });
+      if (!restaurant) {
+        return {
+          ok: false,
+          error: 'Restaurant not found',
+        };
+      }
+      return {
+        ok: true,
+        restaurant,
+      };
+    } catch {
+      return {
+        ok: false,
+        error: 'Could not find restaurant',
+      };
+    }
+  }
+
+  async searchRestaurantByName({
+    query,
+    page,
+  }: SearchRestaurantInput): Promise<SearchRestaurantOutput> {
+    try {
+      const [restaurants, totalResults] = await this.restaurants.findAndCount({
+        where: {
+          name: Raw(name => `${name} ILIKE '%${query}%'`),
+        },
+        skip: (page - 1) * 25,
+        take: 25,
+      });
+      return {
+        ok: true,
+        restaurants,
+        totalResults,
+        totalPages: Math.ceil(totalResults / 25),
+      };
+    } catch {
+      return { ok: false, error: 'Could not search for restaurants' };
+    }
+  }
+
+  async createDish(
+    owner: User,
+    createDishInput: CreateDishInput,
+  ): Promise<CreateDishOutput> {
+    try {
+      const restaurant = await this.restaurants.findOne(
+        createDishInput.restaurantId,
+      );
+      if (!restaurant) {
+        return {
+          ok: false,
+          error: 'Restaurant not found',
+        };
+      }
+      if (owner.id !== restaurant.ownerId) {
+        return {
+          ok: false,
+          error: "You can't do that.",
+        };
+      }
+      await this.dishes.save(
+        this.dishes.create({ ...createDishInput, restaurant }),
+      );
+      return {
+        ok: true,
+      };
+    } catch (error) {
+      console.log(error);
+      return {
+        ok: false,
+        error: 'Could not create dish',
+      };
+    }
+  }
+
+  async checkDishOwner(ownerId: number, dishId: number) {}
+
+  async editDish(
+    owner: User,
+    editDishInput: EditDishInput,
+  ): Promise<EditDishOutput> {
+    try {
+      const dish = await this.dishes.findOne(editDishInput.dishId, {
+        relations: ['restaurant'],
+      });
+      if (!dish) {
+        return {
+          ok: false,
+          error: 'Dish not found',
+        };
+      }
+      if (dish.restaurant.ownerId !== owner.id) {
+        return {
+          ok: false,
+          error: "You can't do that.",
+        };
+      }
+      await this.dishes.save([
+        {
+          id: editDishInput.dishId,
+          ...editDishInput,
+        },
+      ]);
+      return {
+        ok: true,
+      };
+    } catch {
+      return {
+        ok: false,
+        error: 'Could not delete dish',
+      };
+    }
+  }
+
+  async deleteDish(
+    owner: User,
+    { dishId }: DeleteDishInput,
+  ): Promise<DeleteDishOutput> {
+    try {
+      const dish = await this.dishes.findOne(dishId, {
+        relations: ['restaurant'],
+      });
+      if (!dish) {
+        return {
+          ok: false,
+          error: 'Dish not found',
+        };
+      }
+      if (dish.restaurant.ownerId !== owner.id) {
+        return {
+          ok: false,
+          error: "You can't do that.",
+        };
+      }
+      await this.dishes.delete(dishId);
+      return {
+        ok: true,
+      };
+    } catch {
+      return {
+        ok: false,
+        error: 'Could not delete dish',
+      };
+    }
+  }
+
+  async myRestaurants(owner: User): Promise<MyRestaurantsOutput> {
+    try {
+      const restaurants = await this.restaurants.find({ owner });
+      return {
+        restaurants,
+        ok: true,
+      };
+    } catch {
+      return {
+        ok: false,
+        error: 'Could not find restaurants.',
+      };
+    }
+  }
+  async myRestaurant(
+    owner: User,
+    { id }: MyRestaurantInput,
+  ): Promise<MyRestaurantOutput> {
+    try {
+      const restaurant = await this.restaurants.findOne(
+        { owner, id },
+        { relations: ['menu', 'orders'] },
+      );
+      return {
+        restaurant,
+        ok: true,
+      };
+    } catch {
+      return {
+        ok: false,
+        error: 'Could not find restaurant',
+      };
+    }
+  }
 }
-// getAll(): Promise<Restaurant[]> {
-//   return this.restaurants.find(); //this.restaurants.를 했을 때 Repository에 접근해 모든걸 할 수 있다.
-// } //find()는 async method여서 Promise를 써줘야한다.2
-// createRestaurant(
-//   createRestaurantDto: CreateRestaurantDto,
-// ): Promise<Restaurant> {
-//   const newRsetaurant = this.restaurants.create(createRestaurantDto); //Dto가있을 때 방법
-//   // 만들어둔 dto 가 없을 때 방법name: createRestaurantDto.name
-//   //new Restaurant(); 타입스크립트, 자바스크립트의 방법
-//   //이것을 사용하면 매번 만들어줘야 하므로 typeorm의 기능을 사용
-//   //newRsetaurant.name = createRestaurantDto.name;
-//   //위에 const newRsetaurant 자바스크립트에만 저장되어있으므로 마치 클래스
-//   //저장 하기 위해서 save method를 사용해야 한다.
-//   return this.restaurants.save(newRsetaurant); //newRestaurant를 save 한다.
-//   //return 타입을 보면 create은 Restaurant을 리턴하고 save는 promise를 리턴한다.
-
-//   }
-//   updateRestaurant({ id, data }: UpdateRestaurantDto) {
-//     this.restaurants.update(id, { ...data }); //...data는 data의 내용
-//   } //update는 db에 해당 entity가 있는지 확인 x, 프로미스를 반환
-// }
-
-//getAll()을 작성해서 모든 restaurant을 가져오는 service 만들기
-//실제로 DB에 접근하는 방식을 작성
-/* 
-3.2 Injecting The Repository
-1. TypeORM을 이용해서 Restaurant repository를 import
-2. RestaurantService에서 repository를 사용하기 위해 service를 
-RestaurantResolver에 import
-3. RestaurantResolver는 this.restaurantService.getAll()을 return
-
-정리
-repository를 import하고 RestaurantService를 만들어서 RestaurantResolver에 import
-RestaurantResolver가 restaurantService.getAll()을 return 하고
-getAll()은 this.restaurants.find()를 return
-모든 restaurant를 가져옴
-
-3.3
-전체 흐름: AppModule - TypeOrmModule - RestaurantsModule - RestaurantResolver - RestaurantService
-
-1) TypeOrmModule에 DB로 전송할 entity들 설정
-
-2) RestaurantsModule
-: TypeOrmModule의 Restaurant 엔티티를 다른 곳에서 Inject할 수 있도록 import하기.
-: providers에 RestaurantService 주입 => RestaurantResolver에서 사용 가능.
-
-3) RestaurantService
-: @InjectReposity(entity): 전달받은 entity를 기반으로 Repository 생성.
-: Repository의 메서드들로 DB에 접근하는 방식 지정.
-
-4) RestaurantResolver
-: GraphQL Query/Mutation으로 DB에 접근하는 RestaurantService의 메서드들 활용.
-
-4.0
-User Model을 만든다.
-CRUD == account를 만든다. == password를 어떻게 hash하는지 배운다, 
-password를 어떻게 검증하는지 배운다, account와 login을 만들기 때문에, 
-authentiaction(인증), authorization(권한부여)를 배운다.
-그래서 guards같은 middlewares나 metadata를 배운다.
-+ decoraater도 배운다, testing도 배움
-
-10.3
-정규표현식 테스트
-/ /g: 모든 스페이스 제거
-https://www.regexpal.com/
-
-String.prototype.replaceAll()
-정규표현식을 사용해도 되고 replaceAll()을 사용해도 됩니다.
-"hi how are you".replaceAll(" ","-") // 'hi-how-are-you'
-https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/replaceAll
-
-*/

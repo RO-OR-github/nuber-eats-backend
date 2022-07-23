@@ -20,33 +20,41 @@ import { Category } from './category.entity';
 @ObjectType() //objectType은 자동으로 스키마를 빌드하기 위해 사용하는 GraphQL decorator이다.
 @Entity() //Entity는 TypeORM이 DB에 내용들을 저장 할 수 있게 해준다.
 export class Restaurant extends CoreEntity {
-  @Field((type) => String) //graphql
+  @Field(type => String) //graphql
   @Column() //typeorm
   @IsString()
   @Length(5)
   name: string;
 
-  @Field((type) => String)
+  @Field(type => String)
   @Column()
   @IsString()
   coverImg: string;
   //graphql, database, validation을 위해 3번씩 테스트 해야한다.
   //default value와 nullable의 차이 : defaultvalue 값을 추가 해준다.
-  @Field((type) => String, { defaultValue: '강남' })
+  @Field(type => String, { defaultValue: '강남' })
   @Column()
   @IsString()
   address: string;
 
-  @Field((type) => Category, { nullable: true })
-  @ManyToOne((type) => Category, (category) => category.restaurants, {
-    nullable: true,
-    onDelete: 'SET NULL', //ondelete 함수
-  })
+  @Field(type => Category, { nullable: true })
+  @ManyToOne(
+    type => Category,
+    category => category.restaurants,
+    {
+      nullable: true,
+      onDelete: 'SET NULL', //ondelete 함수
+    },
+  )
   category: Category;
 
-  @ManyToOne((type) => User, (user) => user.restaurants, {
-    onDelete: 'CASCADE', //user가 지워지면 restaurant도 지운다.
-  })
+  @ManyToOne(
+    type => User,
+    user => user.restaurants,
+    {
+      onDelete: 'CASCADE', //user가 지워지면 restaurant도 지운다.
+    },
+  )
   owner: User;
   // @Field((type) => String)
   // @Column()
